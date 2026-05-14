@@ -1,0 +1,39 @@
+{
+  "name": "@octo-observability/submit-sbom-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action to submit repository SBOM to observability platform ingestion API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/main.ts -o dist --source-map --license licenses.txt",
+    "lint": "eslint src/ --fix && prettier --write src/",
+    "test": "jest",
+    "all": "npm run lint && npm run test && npm run build",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@actions/core": "3.0.1",
+    "@actions/github": "9.1.1",
+    "@actions/http-client": "4.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "~20.19.0",
+    "@vercel/ncc": "^0.38.4",
+    "eslint": "^10.3.0",
+    "husky": "9.1.7",
+    "jest": "^30.4.2",
+    "lint-staged": "^17.0.4",
+    "prettier": "^3.8.3",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3"
+  }
+}

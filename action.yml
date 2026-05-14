@@ -1,0 +1,21 @@
+name: "Submit SBOM to Observability Platform"
+description: "Retrieves repository SBOM from GitHub and submits to ingestion API"
+
+inputs:
+  base-url:
+    description: "Base URL of the ingestion API (e.g. https://api.example.com)"
+    required: true
+  service-id:
+    description: "UUID of the target service in the observability platform"
+    required: true
+  api-key:
+    description: "API key for ingestion API authentication"
+    required: true
+  github-token:
+    description: "GitHub token for dependency graph API access"
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "node24"
+  main: "dist/index.js"
