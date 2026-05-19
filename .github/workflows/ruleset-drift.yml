@@ -63,8 +63,8 @@ jobs:
               continue
             fi
 
-            # Normalise both for comparison (sort keys, coerce null arrays to [])
-            NORMALISE='walk(if type == "object" then with_entries(if (.value == null) and (.key | test("actors$|reviewers$|exclude$|include$")) then .value = [] else . end) else . end)'
+            # Normalise both for comparison (sort keys, coerce null arrays to [], strip bypass_actors which GITHUB_TOKEN cannot read)
+            NORMALISE='walk(if type == "object" then with_entries(if (.value == null) and (.key | test("actors$|reviewers$|exclude$|include$")) then .value = [] else . end) else . end) | del(.bypass_actors)'
             jq -S "$NORMALISE" "$COMMITTED_FILE" > /tmp/committed-normalised.json
             jq -S "$NORMALISE" "$MATCH" > /tmp/live-normalised.json
 
