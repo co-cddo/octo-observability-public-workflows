@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "stabilityDays": 3,
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "minor-patch-updates",
+      "automerge": false
+    }
+  ],
+  "postUpdateOptions": ["npmDedupe"]
+}

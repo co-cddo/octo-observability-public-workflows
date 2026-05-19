@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version-file: .nvmrc
+
+      - run: npm ci
+        name: Install dependencies
+
+      - run: npm run build
+        name: Build
+
+      - name: Verify no secrets in dist
+        run: |
+          if grep -rEq '(AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|ghs_[a-zA-Z0-9]{36}|-----BEGIN (RSA |EC )?PRIVATE KEY)' dist/; then
+            echo "::error::Potential secret pattern detected in dist/"
+            exit 1
+          fi
+
+      - name: Verify bundle size
+        run: |
+          SIZE=$(wc -c < dist/index.js)
+          if [ "$SIZE" -gt 5242880 ]; then
+            echo "::error::Bundle size ${SIZE} bytes exceeds 5MB limit"
+            exit 1
+          fi
+          echo "Bundle size: ${SIZE} bytes"
+
+      - uses: actions/attest-build-provenance@db473fddc028af60658334401dc6607b8e814c9a # v2.3.0
+        with:
+          subject-path: dist/index.js
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            dist/index.js dist/licenses.txt \
+            --generate-notes

@@ -1,0 +1,87 @@
+name: Ruleset Drift Detection
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/rulesets/**"
+  schedule:
+    - cron: "23 8 * * 1" # Weekly Monday 08:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Fetch live rulesets from GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/live-rulesets
+          REPO="${{ github.repository }}"
+
+          # List endpoint only returns summary — fetch each ruleset by ID for full details
+          gh api "/repos/${REPO}/rulesets" --jq '.[].id' | while read -r ID; do
+            gh api "/repos/${REPO}/rulesets/${ID}" \
+              --jq '{name, target, enforcement, conditions, bypass_actors, rules}' \
+              > "/tmp/live-rulesets/${ID}.json"
+          done
+
+      - name: Compare committed vs live rulesets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DRIFT_FOUND=false
+          REPO="${{ github.repository }}"
+
+          for COMMITTED_FILE in .github/rulesets/*.json; do
+            RULESET_NAME=$(jq -r '.name' "$COMMITTED_FILE")
+            echo "Checking ruleset: $RULESET_NAME"
+
+            # Find matching live ruleset by name
+            MATCH=""
+            RULESET_ID=""
+            for LIVE_FILE in /tmp/live-rulesets/*.json; do
+              LIVE_NAME=$(jq -r '.name' "$LIVE_FILE")
+              if [ "$LIVE_NAME" = "$RULESET_NAME" ]; then
+                MATCH="$LIVE_FILE"
+                RULESET_ID=$(basename "$LIVE_FILE" .json)
+                break
+              fi
+            done
+
+            if [ -z "$MATCH" ]; then
+              echo "::error::Ruleset '$RULESET_NAME' exists in committed config but NOT in live repository. Apply it with: gh api /repos/${REPO}/rulesets -X POST --input $COMMITTED_FILE"
+              DRIFT_FOUND=true
+              continue
+            fi
+
+            # Normalise both for comparison (sort keys, coerce null arrays to [])
+            NORMALISE='walk(if type == "object" then with_entries(if (.value == null) and (.key | test("actors$|reviewers$|exclude$|include$")) then .value = [] else . end) else . end)'
+            jq -S "$NORMALISE" "$COMMITTED_FILE" > /tmp/committed-normalised.json
+            jq -S "$NORMALISE" "$MATCH" > /tmp/live-normalised.json
+
+            if ! diff -u /tmp/committed-normalised.json /tmp/live-normalised.json; then
+              echo "::error::Drift detected in ruleset '$RULESET_NAME'. Committed config differs from live."
+              echo ""
+              echo "To fix: update the live ruleset to match committed config:"
+              echo "  gh api /repos/${REPO}/rulesets/${RULESET_ID} -X PUT --input $COMMITTED_FILE"
+              echo ""
+              echo "Or update committed config to match live:"
+              echo "  gh api /repos/${REPO}/rulesets/${RULESET_ID} --jq '{name, target, enforcement, conditions, bypass_actors, rules}' > $COMMITTED_FILE"
+              DRIFT_FOUND=true
+            else
+              echo "✓ Ruleset '$RULESET_NAME' in sync"
+            fi
+          done
+
+          if [ "$DRIFT_FOUND" = true ]; then
+            exit 1
+          fi
