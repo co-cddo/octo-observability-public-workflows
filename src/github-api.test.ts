@@ -19,7 +19,7 @@ describe("fetchSbom", () => {
 
     const result = await fetchSbom("token", "owner", "repo");
 
-    expect(result.sbom).toEqual(sbomData);
+    expect(result.sbom).toEqual(sbomData.sbom);
     expect(mockRequest).toHaveBeenCalledWith(
       "GET /repos/{owner}/{repo}/dependency-graph/sbom",
       { owner: "owner", repo: "repo" },

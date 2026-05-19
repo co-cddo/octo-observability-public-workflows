@@ -13,7 +13,7 @@ export async function fetchSbom(
       "GET /repos/{owner}/{repo}/dependency-graph/sbom",
       { owner, repo },
     );
-    return { sbom: response.data };
+    return response.data as SbomResponse;
   } catch (error: unknown) {
     if (error instanceof Error && "status" in error) {
       const status = (error as { status: number }).status;

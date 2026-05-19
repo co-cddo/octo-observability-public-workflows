@@ -36480,7 +36480,7 @@ async function fetchSbom(token, owner, repo) {
     const octokit = getOctokit(token);
     try {
         const response = await octokit.request("GET /repos/{owner}/{repo}/dependency-graph/sbom", { owner, repo });
-        return { sbom: response.data };
+        return response.data;
     }
     catch (error) {
         if (error instanceof Error && "status" in error) {
