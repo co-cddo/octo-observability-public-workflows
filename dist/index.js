@@ -32046,7 +32046,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -36476,25 +36476,49 @@ function validateInputs(inputs) {
 
 ;// CONCATENATED MODULE: ./src/github-api.ts
 
+
+const POLL_INTERVAL_MS = 5000;
+const MAX_ATTEMPTS = 24;
 async function fetchSbom(token, owner, repo) {
     const octokit = getOctokit(token);
+    const sbomUrl = await requestReport(octokit, owner, repo);
+    const uuid = sbomUrl.split("/").pop();
+    const sbom = await pollForReport(octokit, owner, repo, uuid);
+    return { sbom };
+}
+async function requestReport(octokit, owner, repo) {
     try {
-        const response = await octokit.request("GET /repos/{owner}/{repo}/dependency-graph/sbom", { owner, repo });
-        return { sbom: response.data };
+        const response = await octokit.request("GET /repos/{owner}/{repo}/dependency-graph/sbom/generate-report", { owner, repo });
+        const data = response.data;
+        return data.sbom_url;
     }
     catch (error) {
         if (error instanceof Error && "status" in error) {
             const status = error.status;
             if (status === 403) {
-                throw new Error("Insufficient permissions \u2014 ensure GITHUB_TOKEN has `contents: read` and dependency graph is enabled", { cause: error });
+                throw new Error("Insufficient permissions — ensure GITHUB_TOKEN has `contents: read` and dependency graph is enabled", { cause: error });
             }
             if (status === 404) {
-                throw new Error("Dependency graph not available \u2014 ensure it is enabled in repository settings", { cause: error });
+                throw new Error("Dependency graph not available — ensure it is enabled in repository settings", { cause: error });
             }
             throw new Error(`GitHub API returned HTTP ${status}`, { cause: error });
         }
         throw error;
     }
+}
+async function pollForReport(octokit, owner, repo, uuid) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const response = await octokit.request("GET /repos/{owner}/{repo}/dependency-graph/sbom/fetch-report/{uuid}", { owner, repo, uuid });
+        if (response.status === 200) {
+            return response.data;
+        }
+        info(`SBOM report still generating (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        await sleep(POLL_INTERVAL_MS);
+    }
+    throw new Error(`Timed out waiting for SBOM report after ${MAX_ATTEMPTS} attempts`);
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 ;// CONCATENATED MODULE: ./src/ingestion-api.ts
