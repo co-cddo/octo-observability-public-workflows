@@ -67,7 +67,9 @@ async function pollForReport(
     );
 
     if (response.status === 200) {
-      return response.data;
+      return typeof response.data === "string"
+        ? JSON.parse(response.data)
+        : response.data;
     }
 
     core.info(

@@ -36510,7 +36510,9 @@ async function pollForReport(octokit, owner, repo, uuid) {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         const response = await octokit.request("GET /repos/{owner}/{repo}/dependency-graph/sbom/fetch-report/{uuid}", { owner, repo, uuid });
         if (response.status === 200) {
-            return response.data;
+            return typeof response.data === "string"
+                ? JSON.parse(response.data)
+                : response.data;
         }
         info(`SBOM report still generating (attempt ${attempt}/${MAX_ATTEMPTS})`);
         await sleep(POLL_INTERVAL_MS);
