@@ -149,4 +149,18 @@ describe("fetchSbom", () => {
       { owner: "owner", repo: "repo", uuid },
     );
   });
+
+  it("parses string response data from text/plain redirect", async () => {
+    const sbomObject = { spdxVersion: "SPDX-2.3", packages: [] };
+    mockRequest
+      .mockResolvedValueOnce(generateReportResponse())
+      .mockResolvedValueOnce({
+        status: 200,
+        data: JSON.stringify(sbomObject),
+      });
+
+    const result = await fetchSbom("token", "owner", "repo");
+
+    expect(result.sbom).toEqual(sbomObject);
+  });
 });
