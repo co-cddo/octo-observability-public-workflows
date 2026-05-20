@@ -14,6 +14,10 @@ export interface SbomResponse {
   sbom: unknown;
 }
 
+export interface GenerateReportResponse {
+  sbom_url: string;
+}
+
 export interface SubmissionResult {
   success: boolean;
   statusCode: number;
